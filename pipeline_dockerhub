@@ -1,0 +1,43 @@
+pipeline {
+    agent {label 'dockerhub'}
+    environment {
+    DOCKERHUB_CREDENTIALS = credentials('Dockerhub')
+    }
+    stages { 
+        stage("Git Clone"){
+            steps{
+                git 'https://github.com/kaza514/hello-world.git'
+                sh 'ls -l'
+            }
+        }
+        stage('Maven Build'){
+            steps{
+               script {
+                  def mvnhome = tool name: 'M2', type: 'maven'
+                  sh "${mvnhome}/bin/mvn --version"
+                  sh "${mvnhome}/bin/mvn clean package"
+               } 
+            }
+        }
+        stage('Build docker image') {
+            steps {  
+                sh 'docker build -t ksr0266/jenkins_pipeline:$BUILD_NUMBER .'
+            }
+        }
+        stage('login to dockerhub') {
+            steps{
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+            }
+        }
+        stage('push image') {
+            steps{
+                sh 'docker push ksr0266/jenkins_pipeline:$BUILD_NUMBER'
+            }
+        }
+}
+post {
+        always {
+            sh 'docker logout'
+        }
+    }
+}
